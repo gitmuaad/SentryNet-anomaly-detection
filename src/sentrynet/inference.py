@@ -1,9 +1,3 @@
-"""Scoring path shared by evaluation, the latency benchmark, and the Gradio app.
-
-One definition of "how a raw flow row becomes an anomaly score", so the app can't drift
-from what training and evaluation measured. Nothing in this module fits or trains anything.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
