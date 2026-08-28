@@ -1,29 +1,14 @@
 """Population Stability Index (PSI) drift monitoring.
 
-Owner in the Action Plan: **Feras Mithwah**.
+The reference distribution is the Normal training partition. A new CSV, or any block of
+one, is compared against that baseline: PSI under 0.10 is a non-issue, 0.10-0.25 is worth
+watching, and above 0.25 flags a retraining review. Nothing here retrains automatically --
+it just raises the flag.
 
-The reference ("expected") distribution is the **Normal training partition** — the same data
-the detectors were fit on. A new CSV, or any 1,000-row block of one, can then be compared
-against that baseline.
-
-Interpretation used by this project:
-
-===================  ===============================================================
-PSI                  Reading
-===================  ===============================================================
-< 0.10               No material shift
-0.10 - 0.25          Moderate shift, monitor
-> 0.25               **Retraining review trigger**
-===================  ===============================================================
-
-The trigger starts a **human review**, plus a fixed scheduled review cadence. This prototype
-does **not** perform, schedule, or claim automated production retraining.
-
-Zero-variance reference features (``failed_logins`` is exactly 0 for every Normal row here)
-are handled explicitly: the binning falls back to a three-bin "below / exactly the reference
-constant / above" scheme, so PSI stays defined *and* still detects drift away from that
-constant. A naive two-bin fallback would pool the constant with every larger value and report
-zero drift no matter how far the new data moved.
+failed_logins is exactly 0 for every Normal row, so quantile binning can't split it into
+more than one bin. The fallback uses three bins (below / exactly / above the constant)
+instead of two, since a naive two-bin split would lump the constant in with every larger
+value and report zero drift no matter how far new data moved.
 """
 
 from __future__ import annotations

@@ -1,10 +1,7 @@
 """Scoring path shared by evaluation, the latency benchmark, and the Gradio app.
 
-This module is the single definition of "how a raw flow row becomes an anomaly score".
-Training and inference therefore cannot drift apart: the Gradio app calls exactly the code
-that produced the reported metrics, using the persisted preprocessor and model.
-
-Nothing here fits anything. There is no ``fit`` method in this module by design.
+One definition of "how a raw flow row becomes an anomaly score", so the app can't drift
+from what training and evaluation measured. Nothing in this module fits or trains anything.
 """
 
 from __future__ import annotations
@@ -51,7 +48,7 @@ class ScoringPipeline:
         return list(feat.SOURCE_NUMERIC) + list(feat.SOURCE_CATEGORICAL)
 
     def score(self, raw: pd.DataFrame) -> np.ndarray:
-        """Anomaly scores for raw flow rows. **Higher = more anomalous.**"""
+        """Anomaly scores for raw flow rows; higher means more anomalous."""
         missing = [c for c in self.required_columns() if c not in raw.columns]
         if missing:
             raise ValueError(

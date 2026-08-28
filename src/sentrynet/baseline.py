@@ -1,36 +1,21 @@
 """Transparent statistical anomaly baseline.
 
-Owner in the Action Plan: **Faris Alsharaan**.
+Uses the five raw source features in their original units rather than the scaled model
+matrix, so an alert can always be explained in plain terms ("this flow used more packets
+than any Normal flow we trained on").
 
-This detector deliberately uses the five *raw* source features in their original units
-(``duration``, ``src_bytes``, ``dst_bytes``, ``packet_count``, ``failed_logins``) rather than
-the scaled model matrix, because its whole purpose is to be explainable to a human reviewer:
-"this flow used more packets than any Normal flow we trained on".
+Statistics come from Normal training rows only. Two rule families are supported, and the
+choice between them is a hyperparameter tuned on the validation set:
 
-Statistics are estimated from **Normal training rows only**. Two rule families are supported
-and the choice between them is a hyperparameter selected on the approved validation set
-(Normal + DDoS + BruteForce, never PortScan).
+- percentile: distance outside a [lo, hi] band taken at percentiles p and 100-p
+- zscore: |x - mean| / std
 
-Percentile rule
-    Per feature, a Normal band ``[lo, hi]`` is taken at percentiles ``p`` and ``100 - p``.
-    A row's excursion is how far outside the band it falls, expressed in band widths::
+Both divide by max(spread, MIN_BAND_WIDTH). failed_logins is exactly 0 for every Normal row
+here, so its std and band width are both zero without that floor -- and a tiny epsilon
+instead of 1.0 would let that one feature dominate every score.
 
-        d = max(0, x - hi, lo - x) / max(hi - lo, MIN_BAND_WIDTH)
-
-Z-score rule
-    Per feature::
-
-        d = |x - mean| / max(std, MIN_BAND_WIDTH)
-
-Both divide by ``max(..., MIN_BAND_WIDTH)`` with ``MIN_BAND_WIDTH = 1.0``. This matters:
-``failed_logins`` is **exactly 0 for every Normal row** in this dataset, so its standard
-deviation and its percentile band width are both zero. An unfloored denominator would be a
-division by zero; an arbitrarily tiny epsilon would make that one feature saturate the score.
-Flooring at one integer unit is meaningful because all five features are integer counts or
-whole seconds.
-
-The final score is the **maximum** per-feature excursion, so the score always has a direct
-human explanation: the single feature that is most out of range. Higher = more anomalous.
+The final score is the max across features, so it's always traceable to one feature. Higher
+means more anomalous.
 """
 
 from __future__ import annotations
@@ -97,7 +82,7 @@ class StatisticalBaseline:
         return pd.DataFrame(out, index=frame.index)
 
     def score(self, frame: pd.DataFrame) -> np.ndarray:
-        """Continuous anomaly score. **Higher = more anomalous.**"""
+        """Anomaly score per row; higher means more anomalous."""
         scores = self.per_feature_scores(frame).to_numpy(dtype="float64")
         return np.nan_to_num(scores.max(axis=1), nan=0.0, posinf=0.0, neginf=0.0)
 

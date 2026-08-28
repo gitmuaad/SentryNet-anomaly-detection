@@ -1,16 +1,7 @@
-"""Artifact persistence and experiment provenance.
+"""Saves and loads trained artifacts (preprocessor, models, thresholds, PSI reference).
 
-Everything the Gradio app or a re-run needs is written to ``artifacts/``:
-
-* the fitted preprocessor
-* the statistical baseline configuration and its fitted Normal statistics
-* the Isolation Forest and One-Class SVM models
-* the frozen operating thresholds
-* the feature list, model metadata, and every random seed
-* the PSI reference profile
-
-**No attack label is ever stored inside an inference bundle.** :func:`save_scoring_bundle`
-asserts this before writing, so a leak would fail loudly instead of shipping.
+save_scoring_bundle refuses to write a bundle that contains a label column, so a leak
+would fail loudly instead of shipping.
 """
 
 from __future__ import annotations
@@ -94,9 +85,7 @@ def load_scoring_bundle(path: str | Path) -> dict[str, Any]:
     """Load a persisted inference bundle."""
     out = Path(path)
     if not out.exists():
-        raise FileNotFoundError(
-            f"Artifact {out} not found. Run `python scripts/train_models.py` first."
-        )
+        raise FileNotFoundError(f"Artifact {out} not found. Run `python scripts/train.py` first.")
     return joblib.load(out)
 
 

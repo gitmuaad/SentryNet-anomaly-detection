@@ -1,6 +1,6 @@
 {
   "run": {
-    "run_timestamp_utc": "2026-08-28T15:17:36+00:00",
+    "run_timestamp_utc": "2026-08-28T21:42:30+00:00",
     "seed": 42,
     "split_protocol": "random",
     "dataset_fingerprint_sha256": "988a13fd5b56ec3caa48b0bb1c933a2690cebd786b6699dea0bf444c3a45ff9c",
@@ -286,5 +286,5 @@
     "seed": 42,
     "reason": "OneClassSVM training cost is approximately quadratic in the number of rows. A fixed-seed subsample of Normal TRAINING rows only is used for both tuning and the final fit, so the selected hyperparameters match the fitted model."
   },
-  "autoencoder": "Autoencoder was optional in the approved Action Plan and was not included due to schedule/scope."
+  "autoencoder": "Not implemented; out of scope for this project."
 }

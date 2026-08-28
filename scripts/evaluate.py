@@ -1,11 +1,10 @@
-"""Phase 4 + 5 — final test evaluation, sensitivity slices, FP windows, PSI, evasion.
+"""Final test evaluation: PR-AUC, sensitivity slices, FP windows, PSI, evasion.
 
     python scripts/evaluate.py
     python scripts/evaluate.py --protocol row_order
 
-This script **never** fits a model and **never** re-selects a threshold. It loads the frozen
-artifacts written by ``train.py`` and uses the final test partition exactly once per
-detector. PortScan appears here and only here, reported as *Unseen Attack Recall*.
+Loads the frozen artifacts from train.py and scores the test partition once per detector.
+PortScan only appears here, reported as the unseen-attack recall.
 """
 
 from __future__ import annotations
@@ -162,7 +161,6 @@ def main() -> int:
             }
         )
 
-        # --- prevalence sensitivity slices (held-out rows only) ----------------------
         for slice_cfg in cfg["sensitivity"]["slices"]:
             name = slice_cfg["name"]
             slice_df, slice_record = build_prevalence_slice(
@@ -178,7 +176,6 @@ def main() -> int:
                 ),
             }
 
-    # --- Sensitivity console summary ---------------------------------------------------
     print("\nPrevalence sensitivity (held-out rows only, reproducible resampling):")
     for name, per_detector in sensitivity_out.items():
         first = next(iter(per_detector.values()))["slice"]
@@ -195,7 +192,6 @@ def main() -> int:
                 f"alerts/10000 rows {m['expected_alerts_per_10000_rows']:.1f}"
             )
 
-    # --- PSI drift examples ------------------------------------------------------------
     psi_reference = load_scoring_bundle(artifacts / "psi_reference.joblib")["psi_reference"]
     psi_examples = {
         "held_out_normal_rows": psi_report_from_frame(
@@ -218,7 +214,6 @@ def main() -> int:
             f"{report['features_triggering_review']}"
         )
 
-    # --- Synthetic evasion stress testing ----------------------------------------------
     print("\nSynthetic evasion stress testing (held-out attack rows, disk untouched):")
     test_attacks = test.loc[test[label] != normal_label]
     evasion_out = {}
@@ -246,7 +241,6 @@ def main() -> int:
                 f"(drop {s['recall_drop']:.4f})"
             )
 
-    # --- Figures and tables ------------------------------------------------------------
     comparison = pd.DataFrame(comparison_rows)
     comparison.to_csv(cfg.path("tables_dir") / f"final_comparison_{protocol}.csv", index=False)
 
@@ -299,7 +293,6 @@ def main() -> int:
         cfg.path("tables_dir") / f"evasion_recall_{protocol}.csv", index=False
     )
 
-    # --- Persist metrics ----------------------------------------------------------------
     run = run_record(cfg.data, fingerprint, protocol)
     save_json(cfg.path("metrics_dir") / f"final_evaluation_{protocol}.json", {
         "run": run,

@@ -1,21 +1,12 @@
-"""One-Class SVM detector.
+"""One-Class SVM detector (RBF kernel), fit on Normal training rows only.
 
-Owner in the Action Plan: **Mohammed Adel Alghamdi**.
+nu and gamma are tuned on the validation set; PortScan never reaches this module.
 
-RBF kernel, fit on Normal training rows only. ``nu`` and ``gamma`` are selected on the
-approved validation set (held-out Normal + DDoS + BruteForce). **PortScan is prohibited from
-tuning** and never reaches this module during selection.
+Training cost is roughly quadratic in row count, so the Normal training partition is
+subsampled with a fixed seed before fitting. The sample size and seed are recorded in the
+result rather than applied silently. Set one_class_svm.train_subsample to null to disable it.
 
-Subsampling (decision D-07)
----------------------------
-``OneClassSVM`` training scales roughly quadratically with the number of training rows. The
-Normal training partition is larger than is comfortable for a grid search, so a fixed-seed
-subsample of Normal *training* rows is used. This is **never silent**: the sample size, the
-seed, and the original population size are recorded in the returned record, saved into
-``artifacts/model_metadata.json``.
-Setting ``one_class_svm.train_subsample`` to ``null`` in the config disables subsampling.
-
-Score convention: ``anomaly_score = -decision_function``, so **higher = more anomalous**.
+Score convention: anomaly_score = -decision_function, so higher means more anomalous.
 """
 
 from __future__ import annotations
@@ -31,7 +22,7 @@ MODEL_NAME = "one_class_svm"
 
 
 def anomaly_score(model: OneClassSVM, X: np.ndarray) -> np.ndarray:  # noqa: N803
-    """Continuous anomaly score. **Higher = more anomalous.**"""
+    """Anomaly score; higher means more anomalous."""
     return -np.asarray(model.decision_function(X), dtype="float64")
 
 
@@ -117,7 +108,7 @@ def tune_one_class_svm(
     kernel: str = "rbf",
     train_subsample: int | None = None,
 ) -> dict[str, Any]:
-    """Grid-search ``nu``/``gamma`` on the approved validation set."""
+    """Grid-search nu and gamma on the validation set."""
     X_fit, subsample_record = subsample_normal_train(X_train, train_subsample, seed)
     configs = one_class_svm_grid(grid_cfg)
 

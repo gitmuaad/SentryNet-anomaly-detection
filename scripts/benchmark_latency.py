@@ -1,21 +1,10 @@
-"""Phase 4 — batch inference latency for exactly 10,000 rows.
+"""Benchmarks batch inference latency for 10,000 rows. Target: under 2 seconds.
 
     python scripts/benchmark_latency.py
 
-Target: **< 2 seconds per 10,000 rows** on the development machine.
-
-What is measured (end-to-end scoring latency):
-
-* derived feature generation
-* preprocessing transform (log1p -> StandardScaler -> OneHotEncoder)
-* model decision score
-
-What is **excluded**: reading the CSV from disk and loading the model artifacts. Model
-loading is a one-off startup cost, not a per-batch cost, and is reported separately.
-
-Method: ``time.perf_counter``, warm-up repetitions discarded, then several measured
-repetitions with the **median** reported (mean, min, max, and standard deviation are also
-recorded). Nothing here is estimated or extrapolated.
+Measures feature generation, preprocessing, and scoring together; excludes reading the CSV
+and loading the model, since that's a one-off cost. Uses time.perf_counter with a few
+warm-up runs discarded, then reports the median of several measured repetitions.
 """
 
 from __future__ import annotations

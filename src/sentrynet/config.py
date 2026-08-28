@@ -1,8 +1,4 @@
-"""Configuration loading.
-
-Every tunable constant lives in ``config/config.yaml`` so that experiments are reproducible
-and so that no magic number is buried in code.
-"""
+"""Loads settings from config/config.yaml."""
 
 from __future__ import annotations
 

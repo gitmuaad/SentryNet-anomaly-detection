@@ -1,28 +1,15 @@
 """Isolation Forest detector.
 
-Owner in the Action Plan: **Faris Alsharaan**.
+Fit on Normal training rows only. contamination is tuned on the validation set (PortScan
+excluded) by PR-AUC.
 
-Fit on Normal training rows only. ``contamination`` is selected on the approved validation
-set (held-out Normal + DDoS + BruteForce, **PortScan excluded**) by PR-AUC.
+Worth knowing: in scikit-learn, contamination doesn't change score_samples, only the
+offset used to threshold it. Since PR-AUC only depends on score ranking, every
+contamination value gives the same PR-AUC for a given forest. tune_isolation_forest
+detects these ties and breaks them by validation F1 at the model's own predict() boundary,
+then false-positive rate, then smallest contamination.
 
-An honest note about ``contamination`` and PR-AUC
--------------------------------------------------
-In scikit-learn, ``contamination`` does not change ``score_samples``; it only sets
-``offset_``, and ``decision_function = score_samples - offset_``. Subtracting a constant
-cannot change the *ranking* of the scores, and PR-AUC depends only on the ranking. Therefore
-**every ``contamination`` value produces exactly the same PR-AUC** for a fixed forest.
-
-This is not hidden. :func:`tune_isolation_forest` detects the ties explicitly, records them
-in ``outputs/metrics/model_selection.json``, and resolves them with the deterministic
-tie-break rule below, which prioritises the operational objectives:
-
-1. highest validation PR-AUC (the primary metric);
-2. then highest validation F1 **at the model's own default decision boundary**
-   (``predict() == -1``), which *is* driven by ``contamination``;
-3. then lowest validation false-positive rate on Normal rows;
-4. then the smallest ``contamination``, then the deterministic sorted parameter order.
-
-Score convention: ``anomaly_score = -decision_function``, so **higher = more anomalous**.
+Score convention: anomaly_score = -decision_function, so higher means more anomalous.
 """
 
 from __future__ import annotations
@@ -39,7 +26,7 @@ PR_AUC_TIE_TOLERANCE = 1e-12
 
 
 def anomaly_score(model: IsolationForest, X: np.ndarray) -> np.ndarray:  # noqa: N803
-    """Continuous anomaly score. **Higher = more anomalous.**"""
+    """Anomaly score; higher means more anomalous."""
     return -np.asarray(model.decision_function(X), dtype="float64")
 
 
@@ -100,15 +87,9 @@ def tune_isolation_forest(
     grid_cfg: Mapping[str, Sequence[Any]],
     seed: int,
 ) -> dict[str, Any]:
-    """Grid-search on the approved validation set. Returns results, best config, tie analysis.
-
-    ``y_val`` is the binary label (1 = attack) for the validation partition, which by
-    construction contains only Normal, DDoS, and BruteForce rows.
-    """
+    """Grid-search on the validation set; returns all results plus the tie analysis."""
     configs = isolation_forest_grid(grid_cfg)
     results: list[dict[str, Any]] = []
-    # Cache forests by the parameters that actually change the fitted trees, so that the
-    # contamination sweep is cheap and provably score-identical.
     forest_cache: dict[tuple[Any, Any], IsolationForest] = {}
 
     for params in configs:

@@ -1,18 +1,13 @@
 """Prevalence sensitivity analysis (the 95/5 case).
 
-Owner in the Action Plan: Bader Alkhalifa / Mohammed Adel Alghamdi.
+The held-out test slice is attack-heavy, the reverse of real traffic. This re-samples
+held-out rows only into a chosen Normal/Attack mix so the alert burden can be reported for a
+more realistic low-prevalence regime.
 
-The held-out test slice of this dataset is attack-heavy, which is the reverse of real IDS
-traffic. This module re-samples **held-out rows only** into a chosen Normal/Attack mix so the
-alert burden can be reported for a realistic low-prevalence regime.
-
-Two hard rules:
-
-* Normal rows are **never** pulled from the training partition. The input is always the
-  frozen test partition.
-* Any "implied daily alert volume" is a **scenario**, driven by an explicit configurable
-  assumption (``sensitivity.assumed_daily_flow_volume``). The dataset has **no timestamps**,
-  so no real daily volume can be, or is, claimed.
+Normal rows are never pulled from training -- only from the frozen test partition. Any
+"implied daily alert volume" is a scenario driven by a configurable assumption
+(sensitivity.assumed_daily_flow_volume), since the dataset has no timestamps and no real
+daily volume can be measured from it.
 """
 
 from __future__ import annotations
@@ -34,12 +29,7 @@ def build_prevalence_slice(
     label_column: str = "attack_type",
     normal_label: str = NORMAL_LABEL,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Re-sample the held-out partition to a target Normal fraction, reproducibly.
-
-    The slice is built without replacement. Whichever side (Normal or Attack) is the binding
-    constraint is used in full and the other side is down-sampled, so no row is ever
-    duplicated and no training row is ever borrowed.
-    """
+    """Re-sample the held-out partition to a target Normal fraction, without replacement."""
     if not 0.0 < normal_fraction < 1.0:
         raise ValueError("normal_fraction must be strictly between 0 and 1")
 
@@ -50,7 +40,7 @@ def build_prevalence_slice(
         raise ValueError("Held-out data must contain both Normal and attack rows.")
 
     attack_fraction = 1.0 - normal_fraction
-    # Option A: use every Normal row available.
+    # Try using every available Normal row first.
     n_attack_if_all_normal = int(round(len(normal_pool) * attack_fraction / normal_fraction))
     if n_attack_if_all_normal <= len(attack_pool):
         n_normal, n_attack = len(normal_pool), n_attack_if_all_normal
@@ -125,7 +115,7 @@ def evaluate_slice(
 def implied_daily_alerts(
     slice_metrics: Mapping[str, Any], assumed_daily_flow_volume: int
 ) -> dict[str, Any]:
-    """Scenario projection. **Explicitly an assumption, never an observation.**"""
+    """Project daily alert volume from an assumed flow rate -- a scenario, not a measurement."""
     rate = float(slice_metrics["alert_rate"])
     fp_rate_all_rows = (
         float(slice_metrics["false_positives"]) / float(slice_metrics["n_rows"])
@@ -144,6 +134,6 @@ def implied_daily_alerts(
         "implied_false_positive_alerts_per_day": fp_rate_all_rows * assumed_daily_flow_volume,
         "how_to_change": (
             "Edit sensitivity.assumed_daily_flow_volume in config/config.yaml and re-run "
-            "scripts/evaluate_models.py."
+            "scripts/evaluate.py."
         ),
     }

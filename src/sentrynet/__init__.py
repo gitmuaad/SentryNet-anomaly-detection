@@ -1,10 +1,7 @@
-"""SentryNet — unsupervised anomaly detection on structured network flows.
+"""SentryNet: unsupervised anomaly detection for network flow data.
 
-Two rules govern every module here:
-
-1. Learned models and the preprocessing pipeline are fit on **confirmed Normal rows only**.
-2. ``PortScan`` never participates in hyperparameter or threshold selection; it is the
-   held-out *unseen attack* used once, on the final test set.
+Models are fit on confirmed-normal rows only. PortScan is excluded from training and
+tuning and used once, on the final test, as an unseen-attack check.
 """
 
 from sentrynet.config import Config, load_config

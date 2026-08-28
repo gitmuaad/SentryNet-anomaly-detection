@@ -1,13 +1,8 @@
-"""Dataset loading, schema verification, duplicate removal, and the privacy review.
+"""Dataset loading, schema verification, deduplication, and the privacy review.
 
-Owner in the Action Plan: Mousa Alharthi (dataset reconciliation, cleaning, deduplication,
-privacy review, publication of the frozen split files).
-
-The dataset is the Kaggle "Cyber Security Attack Using Network Traffic" set by
-``juanschafle`` (version 1). It is **synthetic**. It contains **no timestamp**, **no IP
-address**, **no user/host identifier**, **no MAC address**, and **no free-text field**.
-Nothing in this module hashes, masks, or parses text, because there is nothing of that kind
-to hash, mask, or parse.
+The dataset is the Kaggle "Cyber Security Attack Using Network Traffic" set (juanschafle,
+v1). It's synthetic and has no timestamp, IP address, user/host identifier, or free text,
+so there's nothing here to hash or mask.
 """
 
 from __future__ import annotations
@@ -20,8 +15,7 @@ from typing import Any
 
 import pandas as pd
 
-#: Columns whose presence would contradict the approved specification. If any of these ever
-#: appear, the project's data scope has changed and the pipeline must be revisited.
+# If any of these show up, the schema has changed and this pipeline needs a second look.
 FORBIDDEN_TIME_COLUMNS = ("timestamp", "time", "date", "datetime", "start_time", "end_time")
 FORBIDDEN_IDENTIFIER_COLUMNS = (
     "src_ip",
@@ -39,8 +33,7 @@ FORBIDDEN_IDENTIFIER_COLUMNS = (
 )
 FORBIDDEN_TEXT_COLUMNS = ("message", "log", "payload", "text", "description", "raw_log")
 
-#: The traceability column added before splitting. It is a row counter, not an identifier of
-#: any person, host, or session.
+# Row counter for traceability, not a real identifier.
 ROW_ID = "source_row_id"
 
 PRIVACY_STATEMENT = (
@@ -87,12 +80,7 @@ def file_fingerprint(path: str | Path) -> str:
 
 
 def load_raw(path: str | Path, add_row_id: bool = True) -> pd.DataFrame:
-    """Load the raw CSV, preserving source-file row order.
-
-    A non-sensitive ``source_row_id`` is attached for traceability. Row order is preserved
-    because the sequential *row-order stability split* depends on it. Row order is **not**
-    time: the dataset has no timestamp.
-    """
+    """Load the raw CSV, preserving row order (the row-order split protocol depends on it)."""
     frame = pd.read_csv(path)
     if add_row_id:
         frame.insert(0, ROW_ID, range(len(frame)))
@@ -100,10 +88,10 @@ def load_raw(path: str | Path, add_row_id: bool = True) -> pd.DataFrame:
 
 
 def verify_dataset(frame: pd.DataFrame, dataset_cfg: dict[str, Any]) -> VerificationResult:
-    """Validate the real CSV against the approved specification.
+    """Validate the CSV against the expected schema.
 
-    A *material* failure means the delivered data is not the data the Action Plan was
-    approved against; the caller is expected to stop rather than silently adapt.
+    A material failure means the data doesn't match what the pipeline was built for, and
+    the caller should stop rather than silently adapt to it.
     """
     result = VerificationResult(status="PASS")
     expected_columns = list(dataset_cfg["expected_columns"])
@@ -204,9 +192,8 @@ def remove_exact_duplicates(
 def privacy_review(frame: pd.DataFrame) -> dict[str, Any]:
     """Produce the privacy review record.
 
-    The conclusion is fixed by the schema: the published feature set contains no IP
-    addresses, user/host identifiers, MAC addresses, or free text, so there is nothing to
-    mask. **No hashing is performed and none is claimed.**
+    The feature set has no IP addresses, user/host identifiers, MAC addresses, or free
+    text, so there's nothing to mask, and nothing is hashed.
     """
     lowered = {c.lower() for c in frame.columns}
     return {

@@ -1,20 +1,12 @@
-"""Evaluation: PR-AUC, operating threshold selection, and 1,000-row false-positive windows.
+"""Evaluation: PR-AUC, operating threshold selection, and false-positive windows.
 
-Owner in the Action Plan: Mohammed Adel Alghamdi (PR-AUC / FPR-per-window / latency
-reporting), with the validation protocol owned by Bader Alkhalifa.
+select_operating_threshold refuses to run if PortScan is in the data it's given, since the
+threshold has to come from validation only. A "window" here means a block of 1,000 rows --
+there's no clock in this dataset, so it's never a time window.
 
-Two rules are enforced in code, not just in prose:
-
-* :func:`select_operating_threshold` **refuses** to run if any unseen-attack class
-  (``PortScan``) is present in the data it is given. The operating threshold is chosen on
-  validation only.
-* A "window" is a **block of 1,000 rows**. The dataset has no clock time, so these are never
-  time windows and are never labelled as such.
-
-Every PR-AUC is reported next to its **no-skill baseline**, which equals the positive-class
-prevalence of the slice being scored. PR-AUC is prevalence-sensitive: on an attack-heavy
-slice a random ranker already scores high, so the bare number is not interpretable on its
-own. Reporting both is what makes the comparison honest.
+PR-AUC is reported next to its no-skill baseline (the positive-class prevalence), since on
+an attack-heavy slice a random ranker already scores high and the bare number is misleading
+on its own.
 """
 
 from __future__ import annotations
@@ -114,16 +106,10 @@ def select_operating_threshold(
     normal_label: str = NORMAL_LABEL,
     unseen: Sequence[str] = UNSEEN_ATTACKS,
 ) -> dict[str, Any]:
-    """Choose the binary decision threshold on **validation data only**.
+    """Choose the decision threshold on validation data only.
 
-    Preference order, per the approved plan:
-
-    1. DDoS recall >= target
-    2. BruteForce recall >= target
-    3. strongest Precision/F1 and lowest false-positive burden
-
-    If no threshold satisfies both recall targets, the best achievable tradeoff is chosen and
-    the unmet target is flagged in the returned record. Nothing is faked.
+    Prefers thresholds meeting both recall targets, ranked by F1/precision/FP count. If no
+    threshold meets both targets, falls back to the best achievable tradeoff and flags it.
     """
     assert_no_unseen_attacks(attack_type, unseen)
     scores = np.asarray(scores, dtype="float64")
@@ -291,11 +277,7 @@ def false_positive_windows(
     window_size: int = WINDOW_SIZE,
     normal_label: str = NORMAL_LABEL,
 ) -> pd.DataFrame:
-    """Sequential **1,000-row** evaluation windows.
-
-    The dataset has no clock time. A window is a block of ``window_size`` consecutive rows in
-    the evaluated slice — **never** an hour, a day, or any other time span.
-    """
+    """Split the slice into sequential windows of window_size rows (not time windows)."""
     if window_size <= 0:
         raise ValueError("window_size must be positive")
     scores = np.asarray(scores, dtype="float64")
@@ -334,7 +316,7 @@ def target_status(
     recall_target: float = 0.90,
     latency_target: float = 2.0,
 ) -> dict[str, Any]:
-    """Explicit MET / UNMET / NOT MEASURED status for every Action Plan target."""
+    """MET / UNMET / NOT MEASURED status for each target."""
 
     def status(value: float | None, target: float, comparison: str) -> str:
         if value is None or (isinstance(value, float) and np.isnan(value)):

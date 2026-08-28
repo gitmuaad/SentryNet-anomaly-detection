@@ -2,23 +2,8 @@
 
     python app.py
 
-Scope:
-
-* CSV upload
-* anomaly score
-* binary decision
-* score distribution
-
-plus a few useful extras: Normal/Suspicious counts, the model name and its frozen threshold,
-a downloadable scored CSV, and a PSI drift summary against the stored reference profile.
-
-Deliberately **not** in scope: live packet capture, packet sniffing, network monitoring
-agents, host-log parsing, free-text analysis, chatbot, LLM, RAG, agentic AI, SIEM replacement.
-
-The app **loads already-trained artifacts** and never fits a model. There is no ``fit`` call
-in this file. Uploaded rows are scored with exactly the feature engineering and preprocessing
-that produced the reported metrics, because both come from the persisted bundle in
-``artifacts/``.
+Upload a CSV, pick a detector, and get an anomaly score, a Normal/Suspicious decision, and
+a score distribution per row. Loads the trained artifacts in artifacts/ and never retrains.
 """
 
 from __future__ import annotations

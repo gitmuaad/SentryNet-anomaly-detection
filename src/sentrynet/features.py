@@ -1,23 +1,12 @@
-"""Deterministic feature engineering.
+"""Derived feature engineering.
 
-Owner in the Action Plan: **Muaad Alkathiri** (derived-ratio features).
+Builds the four derived features from the six source fields. The label column is never
+selected into the output, so it can't leak into a feature matrix even by accident.
 
-Four derived features are built from the six source fields. Nothing here looks at
-``attack_type``: the label is dropped before a feature matrix is ever produced, so label
-leakage is structurally impossible rather than merely avoided by convention.
-
-Safe-denominator rule (decision D-03)
--------------------------------------
-Every ratio uses::
-
-    ratio = numerator / maximum(denominator, SAFE_DENOMINATOR_FLOOR)
-
-with ``SAFE_DENOMINATOR_FLOOR = 1.0``. All three denominators (``dst_bytes``,
-``packet_count``, ``duration``) are integer-valued byte/packet counts or whole seconds, so
-1.0 is the smallest meaningful non-zero denominator. This guarantees a finite result for
-every input, including zero, without inventing an arbitrarily tiny epsilon that would
-explode the ratio to ~1e12. The result is additionally passed through a finiteness guard so
-that no ``inf`` or ``NaN`` can ever leave this module.
+Every ratio divides by max(denominator, 1.0) instead of the raw value. dst_bytes,
+packet_count, and duration are all non-negative integers and can be exactly zero, so
+dividing by the raw value would either crash or (with a tiny epsilon instead) blow up to
+something like 1e12. Flooring at 1 keeps the result finite and sane.
 """
 
 from __future__ import annotations
@@ -42,7 +31,7 @@ DERIVED_NUMERIC: tuple[str, ...] = (
     "failed_logins_per_second",
 )
 
-#: Columns that must never reach a model as an input feature.
+# Columns that must never reach a model as an input feature.
 LABEL_COLUMNS: tuple[str, ...] = ("attack_type", "is_attack", "binary_label")
 
 SAFE_DENOMINATOR_FLOOR = 1.0
@@ -53,12 +42,7 @@ def safe_divide(
     denominator: pd.Series | np.ndarray,
     floor: float = SAFE_DENOMINATOR_FLOOR,
 ) -> np.ndarray:
-    """Divide with a deterministic denominator floor.
-
-    ``numerator / maximum(denominator, floor)``, followed by a finiteness guard that maps
-    any residual ``inf``/``NaN`` to ``0.0``. The guard should never fire for this dataset; it
-    exists so that a malformed uploaded CSV cannot poison the Gradio scoring path.
-    """
+    """numerator / max(denominator, floor), with any leftover inf/NaN mapped to 0."""
     num = np.asarray(numerator, dtype="float64")
     den = np.asarray(denominator, dtype="float64")
     den = np.where(np.isfinite(den), den, floor)
@@ -68,17 +52,8 @@ def safe_divide(
 
 
 def add_derived_features(frame: pd.DataFrame, floor: float = SAFE_DENOMINATOR_FLOOR) -> pd.DataFrame:
-    """Return a copy of ``frame`` with the four required derived features appended.
-
-    ==============================  ==================================================
-    Feature                         Formula
-    ==============================  ==================================================
-    ``total_bytes``                 ``src_bytes + dst_bytes``
-    ``src_dst_ratio``               ``src_bytes / max(dst_bytes, 1.0)``
-    ``bytes_per_packet``            ``total_bytes / max(packet_count, 1.0)``
-    ``failed_logins_per_second``    ``failed_logins / max(duration, 1.0)``
-    ==============================  ==================================================
-    """
+    """Return a copy of frame with total_bytes, src_dst_ratio, bytes_per_packet, and
+    failed_logins_per_second appended."""
     missing = [c for c in SOURCE_NUMERIC if c not in frame.columns]
     if missing:
         raise ValueError(f"Missing required source columns: {missing}")

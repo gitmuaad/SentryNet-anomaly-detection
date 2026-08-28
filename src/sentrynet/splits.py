@@ -1,26 +1,12 @@
-"""Frozen split protocols.
+"""Train / validation / test split protocols.
 
-Owner in the Action Plan: Bader Alkhalifa (validation-strategy design), published by
-Mousa Alharthi.
+There's no timestamp in this dataset, so a calendar split isn't possible. Two protocols are
+supported instead: a fixed random split, and a "row_order" split that just cuts the
+source-file order into chunks as a stability check (not a stand-in for a real time split).
 
-**The dataset has no timestamp, no date, and no session identifier.** There is therefore no
-chronological ordering and no calendar split is possible. Two reproducible protocols are
-implemented instead:
-
-``row_order``
-    *Sequential row-order stability split.* Partitions are cut from the source-file row
-    order. This is a **stability check only**. It is explicitly **not** a temporal split and
-    must never be described as one, because source-file row order carries no time semantics.
-
-``random``
-    Fixed random split with a documented ``random_state``.
-
-Partition rules, identical under both protocols:
-
-* ``train`` — Normal rows only. Fits the models and the preprocessor.
-* ``validation`` — held-out Normal + DDoS + BruteForce. Hyperparameter and operating
-  threshold selection. **PortScan is excluded.**
-* ``test`` — held-out Normal + held-out DDoS/BruteForce + **all** PortScan rows. Used once.
+Under both protocols: train is Normal rows only, validation adds held-out DDoS and
+BruteForce for tuning, and test adds everything else plus all of PortScan, which is
+excluded from train and validation so it can serve as the unseen-attack check.
 """
 
 from __future__ import annotations
@@ -93,7 +79,7 @@ def build_splits(
     val_ids: list[np.ndarray] = []
     test_ids: list[np.ndarray] = []
 
-    # --- Normal: three-way. Only the train chunk may fit models or preprocessing. --------
+    # Normal rows are split three ways; only the train chunk fits models or preprocessing.
     normal_rows = frame.loc[frame[label_column] == normal_label, ROW_ID]
     ordered = _ordered_indices(normal_rows, protocol, rng)
     n_train, n_val, n_test = _cut(
@@ -104,7 +90,7 @@ def build_splits(
     val_ids.append(n_val)
     test_ids.append(n_test)
 
-    # --- Tuning attacks (DDoS, BruteForce): validation + test only. Never train. ---------
+    # DDoS and BruteForce go to validation and test only, never to train.
     for attack in tuning_attacks:
         rows = frame.loc[frame[label_column] == attack, ROW_ID]
         ordered = _ordered_indices(rows, protocol, rng)
@@ -114,7 +100,7 @@ def build_splits(
         val_ids.append(a_val)
         test_ids.append(a_test)
 
-    # --- Unseen attacks (PortScan): final test only. Never train, never validation. ------
+    # PortScan (the unseen attack) goes to test only.
     for attack in unseen_attacks:
         rows = frame.loc[frame[label_column] == attack, ROW_ID]
         test_ids.append(_ordered_indices(rows, protocol, rng))
@@ -135,7 +121,7 @@ def _assert_split_rules(
     label_column: str,
     normal_label: str,
 ) -> None:
-    """Hard runtime guarantees. These mirror the tests in ``tests/test_splits.py``."""
+    """Runtime checks that back up the split protocol described above."""
     labels = frame.set_index(ROW_ID)[label_column]
 
     train_labels = set(labels.loc[splits["train"]].unique())

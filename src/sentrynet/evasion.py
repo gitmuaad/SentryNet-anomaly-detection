@@ -1,25 +1,12 @@
 """Synthetic evasion stress testing.
 
-Owner in the Action Plan: **Feras Mithwah**.
+Held-out attack rows are copied and their numeric fields are pulled toward the Normal
+training range, then recall is compared before and after to see how much detection is lost
+when traffic is made to look ordinary.
 
-What this is
-------------
-Held-out **attack-labelled** rows are copied and their numeric fields are pulled toward the
-empirical Normal *training* range. Recall on the originals is compared with recall on the
-variants, at the frozen operating threshold, to measure how much detection is lost when an
-attacker makes traffic look ordinary.
-
-What this is **not**
---------------------
-This is **not** a proof of adversarial robustness. It is a reproducible, deliberately simple
-stress test against one specific evasion idea: "stay inside the Normal envelope". A real
-adversary is not constrained to this transformation. It is described throughout the report
-only as *synthetic evasion stress testing*.
-
-Safety
-------
-The original dataset on disk is never modified. Every generated row carries
-``is_synthetic_evasion_variant = True`` and is written only under ``outputs/``.
+This tests one specific, simple evasion idea -- staying inside the Normal range -- not
+adversarial robustness in general. The original dataset is never modified; generated rows
+are flagged with is_synthetic_evasion_variant.
 """
 
 from __future__ import annotations
@@ -37,7 +24,7 @@ def normal_envelope(
     features: Sequence[str],
     percentiles: Sequence[float] = (1.0, 99.0),
 ) -> dict[str, dict[str, float]]:
-    """Empirical ``[lo, hi]`` range per feature, estimated from Normal training rows only."""
+    """[lo, hi] range per feature, estimated from Normal training rows only."""
     lo_p, hi_p = float(percentiles[0]), float(percentiles[1])
     return {
         col: {
@@ -59,14 +46,9 @@ def synthesise_evasion_variants(
 ) -> pd.DataFrame:
     """Blend attack rows toward the Normal envelope.
 
-    For each targeted feature::
-
-        clipped = clip(x, lo, hi)
-        x_evaded = (1 - strength) * x + strength * clipped
-
-    ``strength = 0`` leaves the row unchanged; ``strength = 1`` forces it fully inside the
-    Normal training range. Integer-valued source columns are rounded back to integers so the
-    variants stay physically plausible (you cannot send half a packet).
+    Each feature is linearly interpolated between its original value and a clipped one, so
+    strength 0 leaves rows unchanged and strength 1 forces them inside the Normal range.
+    Integer columns are rounded back to integers afterward.
     """
     if not 0.0 <= strength <= 1.0:
         raise ValueError("strength must be in [0, 1]")
@@ -78,8 +60,7 @@ def synthesise_evasion_variants(
             idx = np.sort(rng.choice(len(group), size=int(max_rows_per_class), replace=False))
             group = group.iloc[idx]
         frames.append(group)
-    # Concatenating per-class groups would reorder rows; sort back to the input order so
-    # the output is a row-for-row counterpart of the source frame.
+    # Concatenating per-class groups reorders rows; sort back to the original order.
     sampled = pd.concat(frames).sort_index() if frames else attack_rows.copy()
     sampled = sampled.reset_index(drop=True)
 
@@ -113,7 +94,7 @@ def evasion_report(
 ) -> dict[str, Any]:
     """Recall on originals vs. recall on evasion variants, overall and per attack class.
 
-    ``score_fn`` maps a raw flow frame to anomaly scores (higher = more anomalous).
+    score_fn maps a raw flow frame to anomaly scores.
     """
     envelope = normal_envelope(normal_train, features, percentiles)
 

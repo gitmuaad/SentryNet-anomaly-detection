@@ -1,14 +1,6 @@
-"""Phase 2 — cleaning, privacy review, and the frozen split files.
+"""Verifies the schema, cleans the raw CSV, and freezes the train/val/test splits.
 
     python scripts/prepare_data.py
-
-Steps:
-
-1. Verify the schema again (fail fast if the CSV changed).
-2. Add ``source_row_id``, count and remove **exact** duplicates, log the count.
-3. Write ``data/processed/clean.csv``.
-4. Write the privacy review (no masking required, no hashing performed).
-5. Build and freeze **both** split protocols under ``data/splits/<protocol>/``.
 """
 
 from __future__ import annotations

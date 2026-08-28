@@ -1,8 +1,4 @@
-"""Make ``src/`` importable when scripts are run directly (no install step required).
-
-Students can run ``python scripts/<name>.py`` from the repository root without setting
-``PYTHONPATH`` or installing the package.
-"""
+"""Adds src/ to sys.path so these scripts run without installing the package first."""
 
 from __future__ import annotations
 

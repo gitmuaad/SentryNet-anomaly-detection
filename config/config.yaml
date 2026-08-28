@@ -50,9 +50,7 @@ features:
     - src_dst_ratio
     - bytes_per_packet
     - failed_logins_per_second
-  # Deterministic safe-denominator floor used by every ratio feature. All three denominators
-  # (dst_bytes, packet_count, duration) are integer-valued counts or whole seconds, so 1.0 is
-  # the smallest meaningful non-zero denominator.
+  # Floor used when dividing, since dst_bytes/packet_count/duration can be zero.
   safe_denominator_floor: 1.0
 
 preprocessing:
@@ -66,9 +64,8 @@ preprocessing:
     - src_dst_ratio
     - bytes_per_packet
     - failed_logins_per_second
-  # `duration` is intentionally excluded: bounded small integer range, near-uniform in the
-  # Normal training data.
-  scaler: standard          # StandardScaler. RobustScaler is intentionally not used.
+  # duration is left out: small bounded range, near-uniform in Normal traffic.
+  scaler: standard
   categorical_encoder: onehot
 
 correlation:
@@ -119,8 +116,7 @@ isolation_forest:
 
 one_class_svm:
   kernel: rbf
-  # OCSVM training cost is ~O(n^2); Normal-train rows are subsampled with a fixed seed.
-  # This is logged in artifacts/model_metadata.json. Never silent.
+  # Training cost is ~O(n^2), so Normal-train rows are subsampled (logged in model_metadata.json).
   train_subsample: 6000
   grid:
     nu: [0.001, 0.005, 0.01, 0.05, 0.1]
@@ -143,8 +139,7 @@ sensitivity:
       normal_fraction: 0.95
     - name: dataset_prevalence_25_75
       normal_fraction: 0.25
-  # Explicit, user-configurable scenario assumption. NOT an observed value:
-  # the dataset contains no timestamps, so no real daily volume can be measured.
+  # Assumption, not a measurement -- there are no timestamps to derive a real volume from.
   assumed_daily_flow_volume: 1000000
 
 monitoring:

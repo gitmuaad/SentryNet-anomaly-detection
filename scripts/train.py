@@ -1,16 +1,10 @@
-"""Phase 3 — fit the preprocessor and the three detectors, tune on validation, freeze thresholds.
+"""Fits the preprocessor and all three detectors, tunes on validation, freezes thresholds.
 
     python scripts/train.py                 # active protocol from config
     python scripts/train.py --protocol row_order
 
-Order of operations, which is the whole point of the protocol:
-
-1. ``train`` (Normal rows only) fits the preprocessor.
-2. ``train`` fits the statistical baseline, Isolation Forest, and One-Class SVM.
-3. ``validation`` (Normal + DDoS + BruteForce) selects hyperparameters **and** the operating
-   threshold. PortScan is not present and a runtime guard enforces that.
-4. The threshold is written to disk here and only **read** by ``evaluate.py``, so it
-   is frozen before the final test is ever touched.
+The threshold chosen here is written to disk and only read back by evaluate.py, so it's
+frozen before the test set is ever touched.
 """
 
 from __future__ import annotations
@@ -74,7 +68,6 @@ def main() -> int:
     train = subset(clean, splits["train"])
     validation = subset(clean, splits["validation"])
 
-    # --- Guards that make the protocol real rather than aspirational -------------------
     train_classes = set(train[label].unique())
     if train_classes != {normal_label}:
         print(f"[FAIL] Train partition is not Normal-only: {train_classes}", file=sys.stderr)
@@ -85,7 +78,6 @@ def main() -> int:
     print(f"  train      {len(train):>7,} rows  (Normal only)")
     print(f"  validation {len(validation):>7,} rows  {dict(validation[label].value_counts())}")
 
-    # --- Preprocessing: fit on Normal TRAIN only --------------------------------------
     numeric_features = list(SOURCE_NUMERIC) + list(DERIVED_NUMERIC)
     categorical_features = list(SOURCE_CATEGORICAL)
     drop = set(cfg["correlation"]["drop_features"])
@@ -109,9 +101,7 @@ def main() -> int:
     val_enriched = add_derived_features(validation)
 
     selection: dict = {}
-    bundles: dict = {}
 
-    # --- 1. Statistical baseline ------------------------------------------------------
     print("\n[1/3] Statistical baseline ...")
     baseline_results = []
     for params in bl.baseline_grid(cfg["baseline"]["grid"]):
@@ -147,7 +137,6 @@ def main() -> int:
     }
     print(f"      best {best_baseline['params']}  val PR-AUC = {best_baseline['val_pr_auc']:.6f}")
 
-    # --- 2. Isolation Forest ----------------------------------------------------------
     print("[2/3] Isolation Forest ...")
     if_result = iforest.tune_isolation_forest(
         X_train, X_val, y_val, cfg["isolation_forest"]["grid"], seed
@@ -161,7 +150,6 @@ def main() -> int:
         f"contamination-invariant = {tie['pr_auc_is_contamination_invariant']}"
     )
 
-    # --- 3. One-Class SVM -------------------------------------------------------------
     print("[3/3] One-Class SVM (this is the slow one) ...")
     svm_result = ocsvm.tune_one_class_svm(
         X_train, X_val, y_val, cfg["one_class_svm"]["grid"], seed,
@@ -182,7 +170,6 @@ def main() -> int:
         f"({sub['train_sample_size']:,} of {sub['population_size']:,} Normal train rows, seed {sub['seed']})"
     )
 
-    # --- Operating thresholds, chosen on validation only ------------------------------
     print("\nSelecting operating thresholds on validation (PortScan excluded) ...")
     scorers = {
         KIND_BASELINE: lambda frame: baseline_model.score(add_derived_features(frame)),
@@ -219,7 +206,6 @@ def main() -> int:
             f"DDoS/BF recall targets: {status}"
         )
 
-    # --- Primary model: chosen by validation PR-AUC only ------------------------------
     configured = cfg["evaluation"]["primary_model"]
     if configured:
         primary = configured
@@ -229,7 +215,6 @@ def main() -> int:
         primary_reason = "highest validation PR-AUC (test data was not consulted)"
     print(f"\nPrimary detector: {primary}  ({primary_reason})")
 
-    # --- Persist -----------------------------------------------------------------------
     artifacts = cfg.path("artifacts_dir") / protocol
     artifacts.mkdir(parents=True, exist_ok=True)
     fingerprint = file_fingerprint(cfg.path("raw_csv"))
@@ -274,10 +259,7 @@ def main() -> int:
         "feature_names_out": preprocessor.feature_names_out,
         "best_params": {k: selection[k].get("best_params") for k in selection},
         "one_class_svm_subsample": svm_result["subsample"],
-        "autoencoder": (
-            "Autoencoder was optional in the approved Action Plan and was not included due to "
-            "schedule/scope."
-        ),
+        "autoencoder": "Not implemented; out of scope for this project.",
     })
     save_json(cfg.path("metrics_dir") / f"model_selection_{protocol}.json", {
         "run": run_record(cfg.data, fingerprint, protocol),
