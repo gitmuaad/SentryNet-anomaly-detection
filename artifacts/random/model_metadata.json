@@ -1,0 +1,290 @@
+{
+  "run": {
+    "run_timestamp_utc": "2026-08-28T15:17:36+00:00",
+    "seed": 42,
+    "split_protocol": "random",
+    "dataset_fingerprint_sha256": "988a13fd5b56ec3caa48b0bb1c933a2690cebd786b6699dea0bf444c3a45ff9c",
+    "environment": {
+      "python_version": "3.12.10",
+      "scikit_learn_version": "1.9.0",
+      "joblib_version": "1.5.3",
+      "platform": "Windows-11-10.0.26200-SP0",
+      "processor": "Intel64 Family 6 Model 151 Stepping 5, GenuineIntel",
+      "machine": "AMD64"
+    },
+    "config": {
+      "project": {
+        "name": "SentryNet",
+        "seed": 42
+      },
+      "paths": {
+        "raw_csv": "data/raw/cyber_attack_dataset_100000.csv",
+        "processed_dir": "data/processed",
+        "clean_csv": "data/processed/clean.csv",
+        "splits_dir": "data/splits",
+        "artifacts_dir": "artifacts",
+        "outputs_dir": "outputs",
+        "figures_dir": "outputs/figures",
+        "tables_dir": "outputs/tables",
+        "metrics_dir": "outputs/metrics"
+      },
+      "dataset": {
+        "expected_columns": [
+          "duration",
+          "src_bytes",
+          "dst_bytes",
+          "packet_count",
+          "protocol",
+          "failed_logins",
+          "attack_type"
+        ],
+        "label_column": "attack_type",
+        "normal_label": "Normal",
+        "expected_rows": 100000,
+        "expected_class_counts": {
+          "Normal": 24876,
+          "DDoS": 25077,
+          "BruteForce": 25039,
+          "PortScan": 25008
+        },
+        "class_count_tolerance": 0.0
+      },
+      "features": {
+        "source_numeric": [
+          "duration",
+          "src_bytes",
+          "dst_bytes",
+          "packet_count",
+          "failed_logins"
+        ],
+        "source_categorical": [
+          "protocol"
+        ],
+        "derived_numeric": [
+          "total_bytes",
+          "src_dst_ratio",
+          "bytes_per_packet",
+          "failed_logins_per_second"
+        ],
+        "safe_denominator_floor": 1.0
+      },
+      "preprocessing": {
+        "log1p_features": [
+          "src_bytes",
+          "dst_bytes",
+          "packet_count",
+          "failed_logins",
+          "total_bytes",
+          "src_dst_ratio",
+          "bytes_per_packet",
+          "failed_logins_per_second"
+        ],
+        "scaler": "standard",
+        "categorical_encoder": "onehot"
+      },
+      "correlation": {
+        "method": "pearson",
+        "strong_threshold": 0.85,
+        "drop_features": []
+      },
+      "splits": {
+        "normal": {
+          "train": 0.6,
+          "validation": 0.2,
+          "test": 0.2
+        },
+        "tuning_attacks": [
+          "DDoS",
+          "BruteForce"
+        ],
+        "tuning_attack_split": {
+          "validation": 0.5,
+          "test": 0.5
+        },
+        "unseen_attacks": [
+          "PortScan"
+        ],
+        "protocols": [
+          "random",
+          "row_order"
+        ],
+        "active_protocol": "random"
+      },
+      "baseline": {
+        "core_features": [
+          "duration",
+          "src_bytes",
+          "dst_bytes",
+          "packet_count",
+          "failed_logins"
+        ],
+        "min_band_width": 1.0,
+        "grid": {
+          "rule": [
+            "percentile",
+            "zscore"
+          ],
+          "percentile": [
+            0.1,
+            0.5,
+            1.0
+          ]
+        }
+      },
+      "isolation_forest": {
+        "grid": {
+          "n_estimators": [
+            100,
+            200,
+            300
+          ],
+          "max_samples": [
+            "auto",
+            256,
+            1024
+          ],
+          "contamination": [
+            0.001,
+            0.005,
+            0.01,
+            0.02,
+            0.05,
+            0.1
+          ]
+        }
+      },
+      "one_class_svm": {
+        "kernel": "rbf",
+        "train_subsample": 6000,
+        "grid": {
+          "nu": [
+            0.001,
+            0.005,
+            0.01,
+            0.05,
+            0.1
+          ],
+          "gamma": [
+            "scale",
+            0.05,
+            0.1,
+            0.5,
+            1.0
+          ]
+        }
+      },
+      "threshold": {
+        "ddos_recall_target": 0.9,
+        "bruteforce_recall_target": 0.9,
+        "n_candidates": 400
+      },
+      "evaluation": {
+        "pr_auc_target": 0.85,
+        "window_size": 1000,
+        "primary_model": null
+      },
+      "sensitivity": {
+        "slices": [
+          {
+            "name": "sensitivity_95_5",
+            "normal_fraction": 0.95
+          },
+          {
+            "name": "dataset_prevalence_25_75",
+            "normal_fraction": 0.25
+          }
+        ],
+        "assumed_daily_flow_volume": 1000000
+      },
+      "monitoring": {
+        "psi_features": [
+          "duration",
+          "src_bytes",
+          "dst_bytes",
+          "packet_count",
+          "failed_logins"
+        ],
+        "psi_bins": 10,
+        "psi_review_threshold": 0.25,
+        "scheduled_review_days": 30
+      },
+      "evasion": {
+        "target_features": [
+          "duration",
+          "src_bytes",
+          "dst_bytes",
+          "packet_count",
+          "failed_logins"
+        ],
+        "normal_range_percentiles": [
+          1.0,
+          99.0
+        ],
+        "strengths": [
+          0.25,
+          0.5,
+          0.75,
+          1.0
+        ],
+        "max_rows_per_class": 5000
+      },
+      "latency": {
+        "n_rows": 10000,
+        "warmup_repeats": 2,
+        "measured_repeats": 7
+      }
+    }
+  },
+  "primary_model": "statistical_baseline",
+  "primary_model_reason": "highest validation PR-AUC (test data was not consulted)",
+  "numeric_features": [
+    "duration",
+    "src_bytes",
+    "dst_bytes",
+    "packet_count",
+    "failed_logins",
+    "total_bytes",
+    "src_dst_ratio",
+    "bytes_per_packet",
+    "failed_logins_per_second"
+  ],
+  "categorical_features": [
+    "protocol"
+  ],
+  "feature_names_out": [
+    "log_numeric__log1p_src_bytes",
+    "log_numeric__log1p_dst_bytes",
+    "log_numeric__log1p_packet_count",
+    "log_numeric__log1p_failed_logins",
+    "log_numeric__log1p_total_bytes",
+    "log_numeric__log1p_src_dst_ratio",
+    "log_numeric__log1p_bytes_per_packet",
+    "log_numeric__log1p_failed_logins_per_second",
+    "plain_numeric__duration",
+    "categorical__protocol_TCP",
+    "categorical__protocol_UDP"
+  ],
+  "best_params": {
+    "statistical_baseline": {
+      "rule": "percentile",
+      "percentile": 0.1
+    },
+    "isolation_forest": {
+      "n_estimators": 300,
+      "max_samples": 1024,
+      "contamination": 0.1
+    },
+    "one_class_svm": {
+      "nu": 0.005,
+      "gamma": 0.5
+    }
+  },
+  "one_class_svm_subsample": {
+    "subsampled": true,
+    "population_size": 14926,
+    "train_sample_size": 6000,
+    "seed": 42,
+    "reason": "OneClassSVM training cost is approximately quadratic in the number of rows. A fixed-seed subsample of Normal TRAINING rows only is used for both tuning and the final fit, so the selected hyperparameters match the fitted model."
+  },
+  "autoencoder": "Autoencoder was optional in the approved Action Plan and was not included due to schedule/scope."
+}

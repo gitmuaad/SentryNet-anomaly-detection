@@ -1,0 +1,77 @@
+{
+  "statistical_baseline": {
+    "threshold": 0.000690846286701209,
+    "selected_on": "validation (Normal + DDoS + BruteForce). PortScan excluded.",
+    "rule_applied": "Both recall targets are satisfiable. Among all thresholds meeting DDoS recall >= 0.9 and BruteForce recall >= 0.9, selected the highest validation F1, then highest precision, then fewest false positives, then the highest threshold.",
+    "targets": {
+      "ddos_recall_target": 0.9,
+      "bruteforce_recall_target": 0.9
+    },
+    "targets_met": true,
+    "ddos_recall_target_met": true,
+    "bruteforce_recall_target_met": true,
+    "validation_metrics_at_threshold": {
+      "threshold": 0.000690846286701209,
+      "precision": 0.9996010850486676,
+      "recall": 1.0,
+      "f1": 0.9998005027331126,
+      "false_positive_rate": 0.0020100502512562816,
+      "false_positives": 10,
+      "n_normal_rows": 4975,
+      "ddos_recall": 1.0,
+      "bruteforce_recall": 1.0,
+      "alert_rate": 0.8346818499650385
+    },
+    "n_candidates_evaluated": 176
+  },
+  "isolation_forest": {
+    "threshold": -0.050296123727948075,
+    "selected_on": "validation (Normal + DDoS + BruteForce). PortScan excluded.",
+    "rule_applied": "Both recall targets are satisfiable. Among all thresholds meeting DDoS recall >= 0.9 and BruteForce recall >= 0.9, selected the highest validation F1, then highest precision, then fewest false positives, then the highest threshold.",
+    "targets": {
+      "ddos_recall_target": 0.9,
+      "bruteforce_recall_target": 0.9
+    },
+    "targets_met": true,
+    "ddos_recall_target_met": true,
+    "bruteforce_recall_target_met": true,
+    "validation_metrics_at_threshold": {
+      "threshold": -0.050296123727948075,
+      "precision": 0.9396382905195254,
+      "recall": 0.976574347513768,
+      "f1": 0.9577503375667794,
+      "false_positive_rate": 0.31597989949748745,
+      "false_positives": 1572,
+      "n_normal_rows": 4975,
+      "ddos_recall": 1.0,
+      "bruteforce_recall": 0.9531150159744409,
+      "alert_rate": 0.8671461392468285
+    },
+    "n_candidates_evaluated": 401
+  },
+  "one_class_svm": {
+    "threshold": 0.11140612132304369,
+    "selected_on": "validation (Normal + DDoS + BruteForce). PortScan excluded.",
+    "rule_applied": "Both recall targets are satisfiable. Among all thresholds meeting DDoS recall >= 0.9 and BruteForce recall >= 0.9, selected the highest validation F1, then highest precision, then fewest false positives, then the highest threshold.",
+    "targets": {
+      "ddos_recall_target": 0.9,
+      "bruteforce_recall_target": 0.9
+    },
+    "targets_met": true,
+    "ddos_recall_target_met": true,
+    "bruteforce_recall_target_met": true,
+    "validation_metrics_at_threshold": {
+      "threshold": 0.11140612132304369,
+      "precision": 0.9997207261121085,
+      "recall": 1.0,
+      "f1": 0.999860343554855,
+      "false_positive_rate": 0.001407035175879397,
+      "false_positives": 7,
+      "n_normal_rows": 4975,
+      "ddos_recall": 1.0,
+      "bruteforce_recall": 1.0,
+      "alert_rate": 0.8345819598441714
+    },
+    "n_candidates_evaluated": 401
+  }
+}

@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data placed locally for training/reproduction, and everything scripts generate from it.
+# The trained artifacts under artifacts/ that the app needs are tracked and NOT ignored.
+data/
+outputs/

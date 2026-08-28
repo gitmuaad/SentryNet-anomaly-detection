@@ -1,0 +1,176 @@
+# SentryNet configuration — single place for every tunable constant.
+
+project:
+  name: SentryNet
+  seed: 42
+
+paths:
+  raw_csv: data/raw/cyber_attack_dataset_100000.csv
+  processed_dir: data/processed
+  clean_csv: data/processed/clean.csv
+  splits_dir: data/splits
+  artifacts_dir: artifacts
+  outputs_dir: outputs
+  figures_dir: outputs/figures
+  tables_dir: outputs/tables
+  metrics_dir: outputs/metrics
+
+dataset:
+  # Expected schema, validated by scripts/prepare_data.py before any modeling.
+  expected_columns:
+    - duration
+    - src_bytes
+    - dst_bytes
+    - packet_count
+    - protocol
+    - failed_logins
+    - attack_type
+  label_column: attack_type
+  normal_label: Normal
+  expected_rows: 100000
+  expected_class_counts:
+    Normal: 24876
+    DDoS: 25077
+    BruteForce: 25039
+    PortScan: 25008
+  # Tolerance (fraction) for class-count comparison before a discrepancy is called material.
+  class_count_tolerance: 0.0
+
+features:
+  source_numeric:
+    - duration
+    - src_bytes
+    - dst_bytes
+    - packet_count
+    - failed_logins
+  source_categorical:
+    - protocol
+  derived_numeric:
+    - total_bytes
+    - src_dst_ratio
+    - bytes_per_packet
+    - failed_logins_per_second
+  # Deterministic safe-denominator floor used by every ratio feature. All three denominators
+  # (dst_bytes, packet_count, duration) are integer-valued counts or whole seconds, so 1.0 is
+  # the smallest meaningful non-zero denominator.
+  safe_denominator_floor: 1.0
+
+preprocessing:
+  # log1p applied to non-negative, heavy-tailed numeric features (full-dataset |skew| > 1.0).
+  log1p_features:
+    - src_bytes
+    - dst_bytes
+    - packet_count
+    - failed_logins
+    - total_bytes
+    - src_dst_ratio
+    - bytes_per_packet
+    - failed_logins_per_second
+  # `duration` is intentionally excluded: bounded small integer range, near-uniform in the
+  # Normal training data.
+  scaler: standard          # StandardScaler. RobustScaler is intentionally not used.
+  categorical_encoder: onehot
+
+correlation:
+  method: pearson
+  strong_threshold: 0.85
+  # Correlation is a CHECK, not an automatic removal rule. Empty by design.
+  drop_features: []
+
+splits:
+  # Fractions are an implementation detail, chosen and documented in the README.
+  normal:
+    train: 0.60
+    validation: 0.20
+    test: 0.20
+  # DDoS and BruteForce are the only attacks allowed in validation/tuning.
+  tuning_attacks:
+    - DDoS
+    - BruteForce
+  tuning_attack_split:
+    validation: 0.50
+    test: 0.50
+  # PortScan is the unseen attack: 100% test, 0% validation, 0% train.
+  unseen_attacks:
+    - PortScan
+  protocols:
+    - random
+    - row_order
+  active_protocol: random
+
+baseline:
+  core_features:
+    - duration
+    - src_bytes
+    - dst_bytes
+    - packet_count
+    - failed_logins
+  # Integer-unit floor for the per-feature normalisation width.
+  min_band_width: 1.0
+  grid:
+    rule: [percentile, zscore]
+    percentile: [0.1, 0.5, 1.0]
+
+isolation_forest:
+  grid:
+    n_estimators: [100, 200, 300]
+    max_samples: [auto, 256, 1024]
+    contamination: [0.001, 0.005, 0.01, 0.02, 0.05, 0.1]
+
+one_class_svm:
+  kernel: rbf
+  # OCSVM training cost is ~O(n^2); Normal-train rows are subsampled with a fixed seed.
+  # This is logged in artifacts/model_metadata.json. Never silent.
+  train_subsample: 6000
+  grid:
+    nu: [0.001, 0.005, 0.01, 0.05, 0.1]
+    gamma: [scale, 0.05, 0.1, 0.5, 1.0]
+
+threshold:
+  # Operating-threshold selection targets (validation only, PortScan excluded).
+  ddos_recall_target: 0.90
+  bruteforce_recall_target: 0.90
+  n_candidates: 400
+
+evaluation:
+  pr_auc_target: 0.85
+  window_size: 1000          # A "window" is a BLOCK OF 1,000 ROWS. Never a time window.
+  primary_model: null        # null = choose by validation PR-AUC
+
+sensitivity:
+  slices:
+    - name: sensitivity_95_5
+      normal_fraction: 0.95
+    - name: dataset_prevalence_25_75
+      normal_fraction: 0.25
+  # Explicit, user-configurable scenario assumption. NOT an observed value:
+  # the dataset contains no timestamps, so no real daily volume can be measured.
+  assumed_daily_flow_volume: 1000000
+
+monitoring:
+  psi_features:
+    - duration
+    - src_bytes
+    - dst_bytes
+    - packet_count
+    - failed_logins
+  psi_bins: 10
+  psi_review_threshold: 0.25
+  scheduled_review_days: 30
+
+evasion:
+  # Numeric fields pulled toward the empirical Normal training range.
+  target_features:
+    - duration
+    - src_bytes
+    - dst_bytes
+    - packet_count
+    - failed_logins
+  normal_range_percentiles: [1.0, 99.0]
+  strengths: [0.25, 0.50, 0.75, 1.00]
+  max_rows_per_class: 5000
+
+latency:
+  n_rows: 10000
+  warmup_repeats: 2
+  measured_repeats: 7
