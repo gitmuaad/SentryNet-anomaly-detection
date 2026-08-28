@@ -1,11 +1,4 @@
-"""Scoring path shared by evaluation, the latency benchmark, and the Gradio app.
 
-This module is the single definition of "how a raw flow row becomes an anomaly score".
-Training and inference therefore cannot drift apart: the Gradio app calls exactly the code
-that produced the reported metrics, using the persisted preprocessor and model.
-
-Nothing here fits anything. There is no ``fit`` method in this module by design.
-"""
 
 from __future__ import annotations
 
